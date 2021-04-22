@@ -1,0 +1,114 @@
+---
+title: "Pets, Kids, Politics: Instagram Practices of Democratic Presidental Candidates"
+author: "Isabelle Langrock"
+date: "April 2021 "
+output:
+  html_document:
+    code_folding: show
+    highlight: haddock
+    theme: lumen
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
+urlcolor: blue
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 7, fig.height = 5)
+if(!require("pacman")) install.packages("pacman")
+pacman::p_load(dplyr, ggplot2, glmnet, car, data.table, tidyverse, kableExtra, ggridges, scales, zoo)  
+
+# load data 
+all_posts<-read.csv("Data/all_post_data_full.csv")
+all_data<- read.csv("Data/posts_scores_conf60.csv")
+all_data <- all_data %>%
+  select(-X)
+```
+
+# Summary 
+
+# Introduction 
+
+# Data and Analytical Plan 
+
+## Data Collection Process 
+
+## Description of Data 
+
+```{r Post and candidate counts}
+# number of candidates and number of posts by gender 
+post_count_by_gender<- all_data %>%
+  group_by(Gender)%>%
+  summarise(candidates=n_distinct(username), 
+            photo_count=n_distinct(finalurl),
+            average_pics= photo_count/candidates,
+            ave_pol_score=mean(Score))
+
+post_count_by_gender
+kable(post_count_by_gender, caption= "Table 1. Number of posts and candidates, by gender", "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+            
+```
+
+```{r Likes & comments}
+comm_like<- all_data%>%
+  pivot_longer(cols=c("commentcount", "likecount"), names_to= "engagement_type", values_to="count")
+
+comm_like$count<-as.numeric(comm_like$count)
+comm_like$count<-comm_like$count+1
+  
+like_comment_fig<-ggplot(comm_like)+
+  geom_density(aes(x=log(count), color=Gender, fill=engagement_type))+
+  facet_grid(reorder(username, count)~., switch="y")+
+  scale_color_manual(values=c("#ffb74d","#138d75"))+ # Women, then Men for color 
+  scale_fill_manual(values=c("#b3e5fc", "#0d47a1"), labels=c("Comments", "Likes"))+
+  scale_x_continuous(trans= "log10",
+                     breaks = trans_breaks("log10", function(x) 10^x),
+                     labels = trans_format("log10", math_format(10^.x)),
+                     limits=c(10^.2, 10^1.2))+
+  xlab("")+
+  ylab("")+
+  theme_minimal()+
+  theme(strip.text.y.left=element_text(angle=0))
+
+like_comment_fig
+```
+
+
+
+```{r Over Time}
+month_means <- all_data%>%
+  group_by(Gender, pubmonth, pubyear)%>%
+  summarize(mean=mean(Score)) %>%
+  unite(pubmonth, pubyear, pubmonth, sep="-")
+
+month_means$pubmonth <-as.Date(as.yearmon(month_means$pubmonth))
+
+month_plot_all<-ggplot(month_means, aes(x=pubmonth, y=mean, fill=Gender))+
+  geom_bar(stat="identity", position=position_dodge())+
+  geom_smooth()+
+  scale_fill_manual(values=c("purple", "orange"))
+month_plot_all
+```
+```{r Top Labels}
+
+# Wordclouds or networks 
+```
+
+# Analysis 
+##  Model #1: Predicting gender from image features 
+
+## Model #2: Predicting likes from images features 
+
+## Model #3: Analysis of Image features / potentially captions 
+
+# Conclusions 
+
+# Appendix 
+
+
+
+
