@@ -30,13 +30,25 @@ all_data <- all_data %>%
 
 # Summary 
 
+How do women present themselves when they campaign for the highest office in the United States, where their success would be a landmark victory for gender equality? In the 2019-20 Democratic campaigns more women ran for President than ever before, providing an unprecedented opportunity to understand how women candidates present themselves to the American electorate. In particular we look at how both men and women candidates balance the politicking and personalizing demands of a presidential campaign through analysis of the images they post on their Instagram accounts (N=11,815) and measure public response through post engagement. We find:
+
+
 # Introduction 
+
+The rise of social media has opened up new ways for presidential candidates to connect with the electorate, leading to new expectations for campaigns. Personalization, where one’s personality and personal life are made visible to the public through tweets, posts, and pictures has become particularly important to modern politics. Yet expectations of personalization often impact women more, as women candidates must already navigate a double bind that demands they perform as competent politicians in a field long dominated by men and simultaneously fulfill traditionally feminine gender roles (Fiske, Xu, Cuddy, & Glick, 1999; Zulli, 2019). Given this particular balancing act and set of competing tensions, how do women present themselves when they campaign for the highest office in the United States, where their success would be a landmark victory for gender equality? In the 2019-20 Democratic campaigns more women ran for President than ever before, providing an unprecedented opportunity to understand how women presidential candidates present themselves to the American electorate. 
+
+This project investigates the self-personalization practices candidates through analysis of all the candidates Instagram feeds in 2019. We used a proprietary machine vision service to identify objects in each image, which were then manually coded as either political or personal. The analysis presented here uses the full set of labels and images to build a model that predicts gender and one that predicts an engagement score. These are validated on  withheld section of our original data, although we believe this work would be useful to test against other campaigns, for generalization purposes. 
+
+Focus on the objects displayed, rather than assigning the overall image to a single category, both reduces the time and cost of visual coding and allows us to capture the ways that many posts mix politics and personal features: depicting a hug with supporters at a rally or showing a candidate presumably doing work on their phone while in their living room. Using these scores, generated for each post, we then identify gendered trends in self-presentation strategies, specifically looking at the levels of political posts between men and women’s accounts, and identifying objects that are more likely to appear in posts from candidates of a specific gender. We will also identify trends across time, checking for specific patterns among the candidates, moments of convergence where all candidates engage in similar behavior, or moments where the genders diverge. 
+
 
 # Data and Analytical Plan 
 
 ## Data Collection Process 
 
-## Description of Data 
+The Instagram accounts were scraped for all photo (not video) posts in  early 2020. We subsequently used a proprietary machine vision service (Amazon Rekognition) to identify objects in each image, filtered to retain only those images that had a 60% confidence rate. The full process of data collection is not described here, but details can be provided upon request. The data used for this project comes from data files that are the output of the Instagram API calls, Amazon Rekognition returns, and manually coding process. These are described briefly in the appendix. 
+
+## Description of Data (EDA)
 
 ```{r Post and candidate counts}
 # number of candidates and number of posts by gender 
@@ -107,8 +119,11 @@ month_plot_all
 
 # Conclusions 
 
+# References 
+
 # Appendix 
 
+## description of Data Files 
 
 
 
