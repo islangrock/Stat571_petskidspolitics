@@ -1,10 +1,12 @@
 ---
 title: "Pets, Kids, Politics: Instagram Practices of Democratic Presidental Candidates"
-author: "Isabelle Langrock"
-date: "April 2021 "
+author:
+- Isabelle Langrock
+- Alexander Tolbert 
+date: "May 2 2021 "
 output:
   html_document:
-    code_folding: show
+    code_folding: hide
     highlight: haddock
     theme: lumen
     toc: yes
@@ -16,39 +18,69 @@ output:
 urlcolor: blue
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, fig.width = 7, fig.height = 5)
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, fig.width = 7, fig.height = 6)
+
 if(!require("pacman")) install.packages("pacman")
-pacman::p_load(dplyr, ggplot2, glmnet, car, data.table, tidyverse, kableExtra, ggridges, scales, zoo)  
+pacman::p_load(dplyr, ggplot2, glmnet, car, data.table, tidyverse, kableExtra, ggridges, scales, zoo, bestglm, pROC, Metrics, wordcloud, xtable)  
 
 # load data 
-all_posts<-read.csv("Data/all_post_data_full.csv")
-all_data<- read.csv("Data/posts_scores_conf60.csv")
+all_data<- read.csv("Data/posts_scores_conf60.csv") # no labels, but with score 
 all_data <- all_data %>%
   select(-X)
+labels <- read.csv("Data/posts_labels_score_conf60.csv") # all labels, no score
 ```
 
-# Summary 
+# Executive Summary 
 
-How do women present themselves when they campaign for the highest office in the United States, where their success would be a landmark victory for gender equality? In the 2019-20 Democratic campaigns more women ran for President than ever before, providing an unprecedented opportunity to understand how women candidates present themselves to the American electorate. In particular we look at how both men and women candidates balance the politicking and personalizing demands of a presidential campaign through analysis of the images they post on their Instagram accounts (N=11,815) and measure public response through post engagement. We find:
+How do women present themselves when they campaign for the highest office in the United States, where their success would be a landmark victory for gender equality? In the 2019-20 Democratic campaigns more women ran for President than ever before, providing an unprecedented opportunity to understand how women candidates present themselves to the American electorate. We use data sourced from all the Democratic Candidate's Instagram accounts to understand the gendered differences in self-presentation among presidential candidates. 
+
+We first use logistic regression model to predict what image attributes are more likely to predict a woman campaigner as compared to men. We find, that the best predictors are often articles of clothing, themselves highly gendered outside of Instagram. This suggest to us that many of the candidates post similar content, with the best indicators of gender differences these other social indicators. It also suggests the need for continued shcolarship on the relationship between fashion and politics; the ways that clothing can signal likability or competence to a general public and how that is taken advantage of during campaigns. It it striking that in the  novel campagin platform like Instagram we continue to see very traditional indicators very important. 
+
+Our second investigation looks at the relationship between image topic and like count. We create two different models linear regression models, one small and one large, but neither are that successful. Instead we find a much smaller and more interpertable model of follower count and gender is able to describe a much larger amount of variance.  
+
+Despite the rather null findings of our second model that examines like count, this project testifies to the richness of image data and the urgency for scholarship to investigate how politicians adapt to new formats. The next steps for this project are to extend to other levels of political office and across party. 
 
 
 # Introduction 
 
-The rise of social media has opened up new ways for presidential candidates to connect with the electorate, leading to new expectations for campaigns. Personalization, where one’s personality and personal life are made visible to the public through tweets, posts, and pictures has become particularly important to modern politics. Yet expectations of personalization often impact women more, as women candidates must already navigate a double bind that demands they perform as competent politicians in a field long dominated by men and simultaneously fulfill traditionally feminine gender roles (Fiske, Xu, Cuddy, & Glick, 1999; Zulli, 2019). Given this particular balancing act and set of competing tensions, how do women present themselves when they campaign for the highest office in the United States, where their success would be a landmark victory for gender equality? In the 2019-20 Democratic campaigns more women ran for President than ever before, providing an unprecedented opportunity to understand how women presidential candidates present themselves to the American electorate. 
+The rise of social media has opened up new ways for presidential candidates to connect with the electorate, leading to new expectations for campaigns. Personalization, where one’s personality and personal life are made visible to the public through tweets, posts, and pictures has become particularly important to modern politics. Yet expectations of personalization often impact women more, as women candidates must already navigate a double bind that demands they perform as competent politicians in a field long dominated by men and simultaneously fulfill traditionally feminine gender roles (Fiske, Xu, Cuddy, & Glick, 1999; Zulli, 2019). ). Failing to do this impossible task they can be subject to a backlash effect in which the public sees them as either competent or likeable, but never both (Heilman & Okimoto, 2007; Heilman, Wallen, Fuchs, & Tamkins, 2004). Now, women must manage these competing expectations on social media, which has become an important tool for politicians of all genders. These platforms provide a means for candidates to share policy proposals and aspects of their personal lives directly with voters and especially with young voters who frequently engage with politics on primarily visual social media platforms like YouTube and Instagram, rather than the more text-based Facebook and Twitter (Perrin & Anderson, 2019). Past research at the gubernatorial level has shown how women are more likely than men to “self-personalize” in competitive elections, particularly by showing themselves as caregivers, suggesting a strategic awareness of these dynamics among candidates and their campaign staff (McGregor, Lawrence, & Cardona, 2017). 
 
-This project investigates the self-personalization practices candidates through analysis of all the candidates Instagram feeds in 2019. We used a proprietary machine vision service to identify objects in each image, which were then manually coded as either political or personal. The analysis presented here uses the full set of labels and images to build a model that predicts gender and one that predicts an engagement score. These are validated on  withheld section of our original data, although we believe this work would be useful to test against other campaigns, for generalization purposes. 
+This project investigates the self-personalization practices of presidential candidates through analysis of all the candidates Instagram feeds in 2019. We used a proprietary machine vision service (Amazon Rekognition) to identify objects in each image, which were then manually coded as either political or personal. The analysis presented here uses the full set of labels and images to build a model that predicts gender and one that predicts an engagement score (like count). These are validated on  withheld section of our original data. Focus on the objects displayed, rather than assigning the overall image to a single category, both reduces the time and cost of visual coding and allows us to capture the ways that many posts mix politics and personal features: depicting a hug with supporters at a rally or showing a candidate presumably doing work on their phone while in their living room. 
 
-Focus on the objects displayed, rather than assigning the overall image to a single category, both reduces the time and cost of visual coding and allows us to capture the ways that many posts mix politics and personal features: depicting a hug with supporters at a rally or showing a candidate presumably doing work on their phone while in their living room. Using these scores, generated for each post, we then identify gendered trends in self-presentation strategies, specifically looking at the levels of political posts between men and women’s accounts, and identifying objects that are more likely to appear in posts from candidates of a specific gender. We will also identify trends across time, checking for specific patterns among the candidates, moments of convergence where all candidates engage in similar behavior, or moments where the genders diverge. 
+We examine two specific research questions in this project: 
 
+  - 1) Is there a gendered difference in what objects appear in candidate's Instagram posts? 
+  - 2) Are specific objects associated with a greater amount of engagement (Instagram likes)? 
 
 # Data and Analytical Plan 
 
+This section briefly reviews our data collection process. Since the bulk of the data collection was completed for a project outside of this class, we describe the process that produced the data analyzed here. 
+
 ## Data Collection Process 
 
-The Instagram accounts were scraped for all photo (not video) posts in  early 2020. We subsequently used a proprietary machine vision service (Amazon Rekognition) to identify objects in each image, filtered to retain only those images that had a 60% confidence rate. The full process of data collection is not described here, but details can be provided upon request. The data used for this project comes from data files that are the output of the Instagram API calls, Amazon Rekognition returns, and manually coding process. These are described briefly in the appendix. 
+The Instagram accounts were scraped for all posts in early 2020 via the Instagram API. We subsequently used a proprietary machine vision service (Amazon Rekognition) to identify objects in each image, filtered to retain only those images that had a 60% confidence rate. Each label, distinct from the associated image was labeled as either personal or political and a political score was calculated for each image based on the associated labels: $Political_{Score} =  \frac{ \sum (labels_ {Political} * CI)}{n_{labels_political}} - \frac{ \sum (labels_{Personal} * CI)}{n_{labels_personal}}$.
 
-## Description of Data (EDA)
+The image is our unit of analysis, and in the data analyzed here we have the following variables: 
+
+  - associated labels 
+  - confidence level for each label 
+  - candidate & candidate username
+  - date posted (one variable each: month, day, year)
+  - Whether or not the label is coded as political or personal
+  - The political score for the image 
+  - Gender 
+  - like count and comment count
+  - the type of post (photo or video; only photo is analyzed here)
+  - The start date of the campaign
+  - The instagram account follower count (as of Jan. 2020)
+
+
+Details about our use of the Instagram API, the full Amazon Rekognition results, and the manual coding process of the labels into the personal/political categories can be supplied upon request by Isabelle Langrock. This data is part of an ongoing project into the gendered dynamics of presidential campaigns. 
+
+## Description of Data 
+
+Our data consists of 27 candidates, with 6 women candidates. Despite being roughly 1/4 of our candidate count, the women candidates posts compose just over 30% of the photos analyzed here. This higher mean photo count by the woman is driven by the relative seriousness and high-profile nature of all 6 of their campaigns who all took Instagram seriously as a site for campaigning and reaching voters. While a majority of the men candidates did as well, several of them only rarely posted on Instagram. From *Table 1*, we also see that the woman posted more political images, as a group, than the men, who skewed more personal. These scores indicate that women candidates posted more images with objects that more likely to be identified as political or work related. This fits in line with the need identified in the previous literature for women candidates to present themselves as more competent, as reviewed in the introduction. 
 
 ```{r Post and candidate counts}
 # number of candidates and number of posts by gender 
@@ -56,16 +88,31 @@ post_count_by_gender<- all_data %>%
   group_by(Gender)%>%
   summarise(candidates=n_distinct(username), 
             photo_count=n_distinct(finalurl),
-            average_pics= photo_count/candidates,
+            mean_photo_count= photo_count/candidates,
             ave_pol_score=mean(Score))
 
-post_count_by_gender
 kable(post_count_by_gender, caption= "Table 1. Number of posts and candidates, by gender", "html") %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
             
 ```
+Likely due to their greater use of the Instagram platform, the woman candidates also have higher, on average, follower counts than the men. *Figure 1* indicates two outliers: Bernie Sanders and Joe Biden, who have the highest follower counts among all the candidates. 
+```{r Follower Count}
+follower_count <- all_data %>%
+  select(Follower.Count, Gender) %>%
+  ggplot(aes(x=Gender, y=Follower.Count, fill=Gender))+
+  geom_boxplot(alpha=.8 )+
+  scale_fill_manual(values=c("#ffb74d","#138d75"))+
+  ggtitle("Fig 1. Follower Count by Gender")+
+  theme_minimal()+
+  theme(legend.position="none")
 
-```{r Likes & comments}
+follower_count
+```
+
+
+Figure 2. displays the like counts and comment counts (although these are very slight, and invisible for most) of all the candidates. Notably all of the women candidates are among the top half of candidates in terms of like count and comment count.  
+
+```{r Likes & comments, warning=FALSE, fig.width=7, fig.height=6}
 comm_like<- all_data%>%
   pivot_longer(cols=c("commentcount", "likecount"), names_to= "engagement_type", values_to="count")
 
@@ -84,14 +131,17 @@ like_comment_fig<-ggplot(comm_like)+
   xlab("")+
   ylab("")+
   theme_minimal()+
-  theme(strip.text.y.left=element_text(angle=0))
+  theme(strip.text.y.left=element_text(angle=0))+
+  ggtitle("Fig 2. Likes and Comments by Candidate")
 
 like_comment_fig
 ```
 
+Since the woman have higher political score, on average, we broke this out to look at the month by month differences in score. Figure 3 looks at the scores of each image by gender for each month in 2020. While the 95% confidence interval overlaps, suggesting that there are not statistically different differences in men and women's scores, we do see some interesting converging patters at the beginning and end of the year, as well as a large divergence in July. The political scores are on a scale of -100 (only personal) to 100 (only political), so this figure suggests that both men and women balance (mean close to 0) the types of photos they post fairly well across each month. 
 
 
-```{r Over Time}
+```{r Over Time, warning=FALSE}
+
 month_means <- all_data%>%
   group_by(Gender, pubmonth, pubyear)%>%
   summarize(mean=mean(Score)) %>%
@@ -102,28 +152,356 @@ month_means$pubmonth <-as.Date(as.yearmon(month_means$pubmonth))
 month_plot_all<-ggplot(month_means, aes(x=pubmonth, y=mean, fill=Gender))+
   geom_bar(stat="identity", position=position_dodge())+
   geom_smooth()+
-  scale_fill_manual(values=c("purple", "orange"))
+  scale_fill_manual(values=c("purple", "orange")) + 
+  ggtitle("Fig 3. Trends in the Political Scores of photos by Gender and Month (2020")
+
 month_plot_all
 ```
-```{r Top Labels}
+Figures 4 and 5 provide a more qualitative description of the labels in the data set through word clouds of the most frequent labels by category (Fig 4) and by Gender (Fig 5). 
 
-# Wordclouds or networks 
+**Fig 4. Most Frequent Labels by Category (Objects in images)** 
+```{r Top Labels, fig.width=7, warning=FALSE}
+# Top Labels 
+
+freq_label<- labels %>%
+  count(Gender, username, Political, Name) %>%
+  na.omit()
+
+top_label<- freq_label %>%
+  filter(Political==1)%>%
+  group_by(Name) %>%
+  summarise(total_n=sum(n)) %>%
+  slice_max(order_by=total_n, n=100)
+
+top.labels<- top_label$Name
+top.fre<- top_label$total_n
+
+top_label2<- freq_label %>%
+  filter(Political==0)%>%
+  group_by(Name) %>%
+  summarise(total_n=sum(n)) %>%
+  slice_max(order_by=total_n, n=100)
+top.labels.2<- top_label2$Name
+top.fre.2<- top_label2$total_n
+
+
+par(mfrow=c(1,2))
+col1<- brewer.pal(8, "Paired")
+col2<-brewer.pal(8, "Dark2")
+wordcloud(top.labels, top.fre, colors=col1, ordered.colors=F)
+title("(A) Political")
+wordcloud(top.labels.2, top.fre.2, colors=col2, ordered.colors=F)
+title("(B) Personal")
+```
+
+
+**Fig 4. Most Frequent Labels by Gender (Objects in images)** 
+```{r Wordcloud: Gender,warning=FALSE, fig.width=7}
+# By Gender 
+top_w<- freq_label %>%
+  filter(Gender=="Female")%>%
+  group_by(Name) %>%
+  summarise(total_n=sum(n)) %>%
+  slice_max(order_by=total_n, n=200)
+
+t_name_w<- top_w$Name
+t_fre_w<- top_w$total_n
+
+top_m<- freq_label %>%
+  filter(Gender=="Male")%>%
+  group_by(Name) %>%
+  summarise(total_n=sum(n)) %>%
+  slice_max(order_by=total_n, n=200)
+
+t_name_m<- top_m$Name
+t_fre_m<- top_m$total_n
+
+par(mfrow=c(1,2))
+wordcloud(t_name_w, t_fre_w, colors=col1, ordered.colors=F)
+title("(A) Women")
+wordcloud(t_name_m, t_fre_m, colors=col2, ordered.colors=F)
+title("(B) Men")
+
 ```
 
 # Analysis 
+
 ##  Model #1: Predicting gender from image features 
+
+The primary aim of this project to investigate if gendered difference exist at the image level, among Democratic candidates for President. To better investigate these we built an optimized logistic model that predicts gender of candidate from the labels of objects in each image. 
+
+The first model we made surfaced mostly objects that are unique to individual candidates, an error we should potentially have seen coming. While this does tell us something about the differences between men and women candidates, it is something we can learn easier through other means. Thus we present results with the second iteration that only looks at labels that appear more than twice (n=859). We use lambda + one standard error to select variables for a parsimonious model from LASSO regularization, then use regsubsets to reduce  these to refit a glm for an optimal, parsimonious model. This reduces our model to 25 variables. This is the regression table below. Full details of our model selection process are shared in the Appendix. 
+
+```{r data prep and test data, echo=FALSE, results='hide'}
+# first must transform the data set so that it's wide rather than long (each label own row)
+# the model will surface a bunch of the labels that are unique to specific people, we want to filter these out first. 
+label_count <-labels %>%
+  group_by(Name) %>%
+  tally()
+labels_min <- label_count %>%
+  filter(n>2)
+labels_min <- inner_join(labels_min, labels, by="Name")
+  
+# then make a wide data set from the long one with each label name its own column
+label_wide <- labels_min %>%
+  select(finalurl, Gender, Name, Confidence, commentcount, likecount) %>%
+  pivot_wider(names_from= Name, values_from=Confidence, values_fill=0) %>%
+  mutate(Gender=ifelse(Gender=="Female", 1, 0)) %>%
+  select(-finalurl)
+
+# Split the data into training and validating data sets 
+
+N <- length(label_wide$Gender)
+n1<-floor(.6*N)
+n2<- floor(.4*N)
+
+set.seed(10)
+idx_train<- sample(N, n1)
+idx_val<- (which(!seq(1:N) %in% idx_train))
+
+data.train<- label_wide[idx_train,]
+data.validate <- label_wide[idx_val,]
+```
+
+```{r GLM output}
+
+# for full code see the appendix 
+x <- model.matrix(Gender~. - likecount - commentcount, data.train)[,-1]
+
+y <- data.train$Gender
+#fit1.cv<-cv.glmnet(x, y, alpha=1, family="binomial", nfolds=3, type.measure = "deviance")
+# save(fit1.cv, file="Data/fit1_cv.RData")
+load("Data/fit1_cv.Rdata")
+
+coef.1se<- coef(fit1.cv, s="lambda.1se")
+coef.1se<- coef.1se[which(coef.1se!=0),]
+
+beta.min <- rownames(as.matrix(coef.1se))
+data.train.min <- data.train %>%
+  select(Gender, one_of(beta.min), - Jeans, -Accessory, -Flyer)
+
+fit1_forward <- regsubsets(Gender~., data.train.min, nvmax=35, method="forward")
+
+ff1<- summary(fit1_forward)
+
+ff_final<- ff1$which
+final_variables <- colnames(ff_final)[ff_final[25,]][-1]
+final_input <- as.formula(paste("Gender", "~", paste(final_variables, collapse="+")))
+
+glm_fit1 <- glm(final_input, family=binomial, data=data.train)
+```
+
+```{r, results="asis"}
+print(xtable(glm_fit1), type="html")
+```
+
+We then test this model on our validation data set (40% of the original data) and get an AUC of 0.7. We think this is a pretty impressive prediction rate for our model, specifically since it is based off of only 25 image objects. 
+
+```{r test the model, warnings=FALSE}
+fit.final.test <- predict(glm_fit1, data.validate, type="response")
+
+fit.final.roc <- roc(data.validate$Gender, fit.final.test)
+
+plot(1-fit.final.roc$specificities, fit.final.roc$sensitivities, 
+     col="purple", type="l", lwd = 3, 
+     xlab=paste("AUC = ", round(pROC::auc(fit.final.roc), 2)),
+     ylab="Sensitivities")
+title("ROC Curve: Gender prediction model")
+```
+
+
+The quality of our model, and its performance on our test set suggests that it is indeed possible to differentiate men and women candidates based on objects in the images they post. However closer look at the variables in our final model suggest that is mostly due to clothing items, which reflect wider gendered trends in self personalization (for example, the increase likelihood of a candidate being a woman if the image includes jewelry). Clothing is the best indicator between men and women presidential candidates, suggesting a need for more scholarship on the importance of clothing in politics, particularly as a means to either encourage likeability or as a signal of competence, and how this might vary between men and women. 
+
+There is also a non-negligble chance that this is due bias withing our image classifier service which might have identified women more than men (the female and girl variable in the above regression) or might otherwise have better identified certain clothing items on men than women. The results of this model suggest that we should audit our label classifier with more sensitivity and potentially sublement it with other results. 
+
 
 ## Model #2: Predicting likes from images features 
 
-## Model #3: Analysis of Image features / potentially captions 
+Our second model investigates th relationship among objects in images and the popularity (via likes) of those images. To build this model we use LASSO selection and a linear regression model to identify a parsimonious model for predicting the image like count. Full details of this process are described in the appendix. Unfortunately the model using the image labels is not good and violates a lot of our linear and heteroscedasticity assumptions. (See Appendix for the diagnostics run). A simple model using gender and follower count is a much better fit for the data. Together these two models suggest that while there are certain objects that garner more likes (pets, like dogs and turles, for instance) and less likes (schools) the best way to boost like count is to increase follower count. 
+
+
+```{r Model 1, echo=FALSE, results="hide"}
+x2 <- model.matrix(likecount~. - Gender - commentcount, label_wide)[,-1]
+y2 <- label_wide$likecount
+set.seed(10)
+fit.lambda<-glmnet(x2, y2, alpha=1, lambda=150)
+#fit2.cv<- cv.glmnet(x2, y2, alpha=1, nfolds=5)
+#save(fit2.cv, file="Data/fit2_cv.RData")
+load("Data/fit2_cv.RData")
+
+fit2_min <- coef(fit2.cv, s="lambda.min")
+fit2_min <- fit2_min[which(fit2_min !=0),]
+beta2<- rownames(as.matrix(fit2_min))
+
+beta2<- c(beta2, "Arcade Game Machine", "Box Turtle", "Business Card", "German Shephard", "Golden Retriever","Labrador Retriever", "Mountain Range", "Press Conference")
+
+data.min2<- label_wide %>%
+  select(likecount, one_of(beta2), -Denim, -Display, -Baseball, - Apparel, -Confectionery, -Human)
+
+fit2_lm <- lm(likecount~., data=data.min2)
+
+
+fit2_forward <- regsubsets(likecount~., data.min2, nvmax=50, method="forward")
+
+ff2<- summary(fit2_forward)
+
+fit.ff <- ff2$which # minimized at 30
+m1_vars<-colnames(fit.ff)[fit.ff[30,]][-1]
+
+m1_input <- as.formula(paste("likecount", "~", paste(m1_vars, collapse="+")))
+m1<- lm(m1_input, data=label_wide)
+
+```
+
+```{r results="asis"}
+print(xtable(m1), type="html")
+```
+
+
+```{r simple comparison model, results="asis"}
+m2 <- lm(likecount~Follower.Count + Gender + Score, data=all_data)
+print(xtable(m2), type="html")
+```
+
+While high follower counts also have higher like counts on individual pictures is a rather obvious conclusion, the evidence for it here suggests important new directions for studying how campaigns operate on social media platforms. Specifically it should prompt us into better understanding how candidates can grow their follower base, particularly among young voters who they are more likely to encounter on a platform like Instagram than through traditional media or even other social media networking sites like Facebook or Twitter. While we do not have this data, our findings are promising for future research. 
+
+Additionally, gender is a significant variable in predicting like count with men recieving about 4,000 likes more than women, all else holding constant. While it's unclear what the causes of this difference is (indeed, its unlikely there is just one), its important to note as a fact that both motivates this project as well as should motivate continued research in the different ways men and women campaign and experience the candidacy process. 
 
 # Conclusions 
 
+This project used an original data set of instagram posts by the 2020 Democratic primary candidates to better understand the behavior they engage in on Instagram and if there are gendered differences. We find that the old differences, particularly around how candidates use clothing to express themselves, are still important in contemporary campaigns. We also look at what image objects are best able to predict like count and surfaced an intersecting, if poorly predictive, model. Indeed, follower count is a much better predictor than anything else. 
+
+Our analysis is limited in its scope of only democratic and only presidential candidates. It thus perhaps overestimates based on individuals particularities, and subsequent analysis should extend to other races and other parties, as well as other countries. We also use a data set that is perhaps to empty to be of best results here, with most variables having just a few associated variables (and otherwise being mostly 0). Treating these as categorical indicator variables would be a good robustness check, although is not completed here. 
+
+In all, we find that this project is able to shed some light into an emerging phenomenon (more women running for President) on  understudied platform (Instagram). Our findings will hopefully encourage more women to run for politics mainly through its description of what the 2020 candidates posted and featured on their account. We hope this work contributes to the ongoing efforts of better understanding the gender biases that maintain gender inequities among US politicians. 
+
 # References 
+
+Fiske, S. T., Xu, J., Cuddy, A. C., & Glick, P. (1999). (Dis)respecting versus (Dis)liking: Status and Interdependence Predict Ambivalent Stereotypes of Competence and Warmth. Journal of Social Issues, 55(3), 473–489. https://doi.org/10.1111/0022-4537.00128 
+
+Heilman, M. E., & Okimoto, T. G. (2007). Why are women penalized for success at male tasks?: The implied communality deficit. Journal of Applied Psychology, 92(1), 81-92.
+
+Heilman, M. E., Wallen, A. S., Fuchs, D., & Tamkins, M. M. (2004). Penalties for Success: Reactions to Women Who Succeed at Male Gender-Typed Tasks. Journal of Applied Psychology, 89(3), 416-427.
+
+McGregor, S. C., Lawrence, R. G., & Cardona, A. (2017). Personalization, gender, and social media: gubernatorial candidates’ social media strategies. Information, Communication & Society, 20(2), 264–283.
+
+Zulli, D. (2019). Towards a Conception of the “Mythic Presidency:” Hillary Clinton, Donald Trump, and the Visual Politics of Gender on Instagram. In Montalbano, L. (Ed.) Gender, Race, and Social Identity in American Politics: The Past and Future of Political Access. Lanham: Lexington Books.
+
 
 # Appendix 
 
-## description of Data Files 
+For full code please see the markdown file accompanying the pdf. 
+
+## Analysis 1: Model Selection (LASSO and regsubsets)
+
+```{r Analysis 1: Model Selection, results="hide"}
+# see Appendix for the Data Preparation steps (using the data.train df)
+# first LASSO 
+x <- model.matrix(Gender~. - likecount - commentcount, data.train)[,-1]
+
+y <- data.train$Gender
+
+set.seed(10)
+
+# have to run with only 3 folds since this is very computationally expensive. Saved so only have to run once 
+# fit1.cv<-cv.glmnet(x, y, alpha=1, family="binomial", nfolds=3, type.measure = "deviance")
+plot(fit1.cv)
+
+#saveRDS(fit1.cv, file="Data/fit1_cv_glmnet_labelsmin.RData")
+
+coef.1se<- coef(fit1.cv, s="lambda.1se")
+coef.1se<- coef.1se[which(coef.1se!=0),]
+coef.1se
+rownames(as.matrix(coef.1se))
+
+# make new data set with all the variables in coef.min and run GLM, ANOVA to get rid of some 
+
+beta.min <- rownames(as.matrix(coef.1se))
+
+beta.min <- c(beta.min, "American Flag","Feather Boa", "Golden Retriever", "Id Cards", "Long Sleeve", "T-Shirt")
+
+# reduce the training model to only selected variables and remove the colinear variables (Denim- Jean; Accessory - Accessories; Flyer - Brochure )
+alias(glm(Gender~., data=data.train.min, family=binomial))
+
+data.train.min <- data.train %>%
+  select(Gender, one_of(beta.min), - Jeans, -Accessory, -Flyer)
+
+fit1_forward <- regsubsets(Gender~., data.train.min, nvmax=35, method="forward")
+
+ff1<- summary(fit1_forward)
+ff1
+plot(ff1$cp, xlab="Number of predictors",
+ylab="BIC", col="red", type="p", pch=16)
+which.min(ff1$bic)
+
+# optimal number of variables is 25 
+ff_final<- ff1$which
+final_variables <- colnames(ff_final)[ff_final[25,]][-1]
+final_input <- as.formula(paste("Gender", "~", paste(final_variables, collapse="+")))
+
+glm_fit1 <- glm(final_input, family=binomial, data=data.train)
+
+summary(glm_fit1)
+Anova(glm_fit1)
+```
+
+## Analysis 2: Like Count 
+```{r Model 2, results="hide"}
+## Full code with annotates for M2 and M3 
+
+x2 <- model.matrix(likecount~. - Gender - commentcount, label_wide)[,-1]
+
+y2 <- label_wide$likecount
+
+set.seed(10)
+
+#fit.lambda<-glmnet(x2, y2, alpha=1, lambda=150)
+names(fit.lambda)
+fit.lambda$lambda
+fit.lambda$beta
+fit.lambda$df
+
+#fit2.cv<- cv.glmnet(x2, y2, alpha=1, nfolds=5)
+plot(fit2.cv)
+
+fit2_min <- coef(fit2.cv, s="lambda.min")
+fit2_min <- fit2_min[which(fit2_min !=0),]
+fit2_min
+
+beta2<- rownames(as.matrix(fit2_min))
+
+
+# also removing colinear variables (code 288: 293 is run iteratively to id colinear variables)
+
+
+beta2<- c(beta2, "Arcade Game Machine", "Box Turtle", "Business Card", "German Shephard", "Golden Retriever","Labrador Retriever", "Mountain Range", "Press Conference")
+data.min2<- label_wide %>%
+  select(likecount, one_of(beta2), -Denim, -Display, -Baseball, - Apparel, -Confectionery, -Human)
+
+fit2_lm <- lm(likecount~., data=data.min2)
+alias(fit2_lm)
+
+#fit2_forward <- regsubsets(likecount~., data.min2, nvmax=50, method="forward")
+
+ff2<- summary(fit2_forward)
+plot(ff2$cp, xlab="Number of predictors",
+ylab="BIC", col="red", type="p", pch=16)
+which.min(ff2$bic)
+
+fit.ff <- ff2$which # minimized at 30
+m1_vars<-colnames(fit.ff)[fit.ff[30,]][-1]
+
+m1_input <- as.formula(paste("likecount", "~", paste(m1_vars, collapse="+")))
+m1<- lm(m1_input, data=label_wide)
+summary(m1)
+plot(m1, 1)
+plot(m1, 2)
+
+# compare with model based off of other variables 
+
+#m2 <- lm(likecount~Follower.Count + Gender + Score, data=all_data)
+#summary(m2)
+```
 
 
 
